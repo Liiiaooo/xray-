@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xray 配置生成器 (VLESS-XTLS-uTLS-REALITY)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tweetnacl/1.0.3/nacl.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        
+        /* --- 新增：渐变提示条样式 --- */
+        #toast-notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            color: white;
+            font-weight: 600;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s, top 0.5s;
+        }
+        #toast-notification.show {
+            opacity: 1;
+            visibility: visible;
+            top: 30px;
+        }
+        /* 提示条状态颜色 */
+        .toast-success { background-color: #28a745; }
+        .toast-error { background-color: #dc3545; }
+        .toast-info { background-color: #333; }
+        /* --- 结束：渐变提示条样式 --- */
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        h1, h2 {
+            color: #1a5a96;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-top: 1.5em;
+        }
+        h1 { margin-top: 0; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .input-group {
+            display: flex;
+        }
+        .input-group input {
+            flex-grow: 1;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        .input-group button {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-left: 0;
+        }
+        .form-group textarea {
+            width: 100%;
+            height: 120px;
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fdfdfd;
+        }
+        .btn {
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+            margin-top: 5px;
+            transition: background-color 0.2s ease;
+            white-space: nowrap;
+        }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-success:hover { background-color: #218838; }
+        .btn-info { background-color: #17a2b8; color: white; }
+        .btn-info:hover { background-color: #138496; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-danger:hover { background-color: #c82333; }
+        
+        .btn-small {
+            padding: 3px 8px;
+            font-size: 12px;
+        }
+        
+        .command-block {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin-bottom: 10px;
+        }
+        .command-block pre {
+            margin: 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            flex-grow: 1;
+        }
+        .command-block code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            color: #c7254e;
+        }
+        .command-block button {
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+
+        #qr-code {
+            width: 256px;
+            height: 256px;
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #qr-code canvas, #qr-code img {
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .output-container {
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast-notification"></div>
+
+    <div class="container">
+        <h1>Xray 配置生成器 (VLESS-XTLS-uTLS-REALITY)</h1>
+
+        <div class="grid">
+            <section>
+                <h2>1. 核心参数</h2>
+                <div class="form-group">
+                    <label for="serverIp">服务器 IP 或域名 (用于客户端)</label>
+                    <input type="text" id="serverIp" placeholder="例如: 1.2.3.4 或 a.com">
+                </div>
+                <div class="form-group">
+                    <label for="serverPort">服务器端口</label>
+                    <input type="number" id="serverPort" value="443">
+                </div>
+                <div class="form-group">
+                    <label for="uuid">UUID</label>
+                    <div class="input-group">
+                        <input type="text" id="uuid" placeholder="点击 '生成' 按钮">
+                        <button class="btn btn-secondary" onclick="genUUID()">生成</button>
+                    </div>
+                </div>
+                
+                <h2>2. SNI / 目标 (Dest)</h2>
+                 <div class="form-group">
+                    <label for="sniPreset">常用 SNI 预设库</label>
+                    <select id="sniPreset" onchange="applySNIPreset()">
+                        <option value="">-- 手动输入或从库中选择 --</option>
+                        </select>
+                </div>
+                <div class="form-group">
+                    <label for="serverNames">SNI 列表 (第一个将用作 dest)</label>
+                    <div class="input-group">
+                        <input type="text" id="serverNames" value="www.microsoft.com" placeholder="例如: www.microsoft.com,www.bing.com">
+                        <button class="btn btn-secondary" onclick="setRandomSNI()">随机</button>
+                    </div>
+                </div>
+
+                <h2>3. 客户端参数</h2>
+                <div class="form-group">
+                    <label for="fingerprint">uTLS 指纹 (fp)</label>
+                    <select id="fingerprint">
+                        <option value="chrome" selected>Chrome</option>
+                        <option value="firefox">Firefox</option>
+                        <option value="safari">Safari</option>
+                        <option value="ios">iOS</option>
+                        <option value="android">Android</option>
+                        <option value="random">Random</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="shortId">Short ID</label>
+                    <div class="input-group">
+                        <input type="text" id="shortId" placeholder="1-16位十六进制, 留空自动生成">
+                        <button class="btn btn-secondary" onclick="genShortId()">生成</button>
+                    </div>
+                </div>
+                 <div class="form-group">
+                    <label for="remark">客户端备注</label>
+                    <input type="text" id="remark" value="My-REALITY-Node" placeholder="给客户端配置起个名字">
+                </div>
+            </section>
+
+            <section>
+                <h2>4. 密钥与操作</h2>
+                <div class="form-group">
+                    <button class="btn btn-primary" onclick="genKeys()" style="width: 100%;">生成新的密钥对</button>
+                </div>
+                <div class="form-group">
+                    <label for="privateKey">私钥 (PrivateKey)</label>
+                    <input type="text" id="privateKey" readonly placeholder="点击上方按钮生成">
+                </div>
+                <div class="form-group">
+                    <label for="publicKey">公钥 (PublicKey)</label>
+                    <input type="text" id="publicKey" readonly placeholder="点击上方按钮生成">
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <button class="btn btn-success" onclick="saveInputs()">保存输入</button>
+                    <button class="btn btn-info" onclick="loadInputs()">加载输入</button>
+                    <button class="btn btn-danger" onclick="clearInputs()">清空输入</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="fileImport" style="margin-top: 15px;">导入服务器 config.json</label>
+                    <input type="file" id="fileImport" accept=".json" onchange="importConfig()" style="padding: 0; border: none;">
+                </div>
+                
+                <h2>5. (可选) SNI 延迟测试</h2>
+                <p>为预设库中的<b>随机10个</b>域名生成延迟测试命令。</p>
+                <button class="btn btn-info" onclick="showLatencyTestCommand()">生成测试命令</button>
+                <div class="form-group" style="margin-top: 10px;">
+                    <textarea id="latencyTestCommand" readonly placeholder="点击按钮生成命令..."></textarea>
+                </div>
+                <button class="btn btn-secondary" onclick="copyToClipboard('latencyTestCommand')">复制命令</button>
+                
+            </section>
+        </div>
+        
+        <div class="form-group" style="margin-top: 30px;">
+            <button class="btn btn-primary" style="width: 100%; font-size: 18px; padding: 15px;" onclick="generateConfigs()">
+                &darr; &darr; &darr; 生成所有配置 &darr; &darr; &darr;
+            </button>
+        </div>
+
+        <hr style="margin-top: 30px;">
+
+        <div class="grid">
+            <section class="output-section">
+                <h2>服务器 Config.json</h2>
+                <button class="btn btn-secondary" onclick="copyToClipboard('serverConfig')">复制配置</button>
+                <button class="btn btn-success" onclick="downloadConfig()">下载 config.json</button>
+                <div class="form-group" style="margin-top: 10px;">
+                    <textarea id="serverConfig" readonly style="height: 200px;"></textarea>
+                </div>
+                
+                <h2>常用服务器命令</h2>
+                <div class="command-block">
+                    <pre><code>sudo apt update</code></pre>
+                    <button class="btn btn-secondary btn-small" onclick="copyText('sudo apt update')">复制</button>
+                </div>
+                <div class="command-block">
+                    <pre><code>bash &lt;(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)</code></pre>
+                    <button class="btn btn-secondary btn-small" onclick="copyText('bash <(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)')">复制安装</button>
+                </div>
+                 <div class="command-block">
+                    <pre><code>bash &lt;(curl -L .../install-release.sh) --remove</code></pre>
+                    <button class="btn btn-secondary btn-small" onclick="copyText('bash <(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh) --remove')">复制卸载</button>
+                </div>
+                <div class="command-block">
+                    <pre><code>sudo systemctl restart xray</code></pre>
+                    <button class="btn btn-secondary btn-small" onclick="copyText('sudo systemctl restart xray')">复制</button>
+                </div>
+                 <div class="command-block">
+                    <pre><code>sudo systemctl stop xray</code></pre>
+                    <button class="btn btn-secondary btn-small" onclick="copyText('sudo systemctl stop xray')">复制</button>
+                </div>
+                <div class="command-block">
+                    <pre><code>systemctl status xray</code></pre>
+                    <button class="btn btn-secondary btn-small" onclick="copyText('systemctl status xray')">复制</button>
+                </div>
+            </section>
+
+            <section class="output-section output-container">
+                <h2>客户端 VLESS 链接</h2>
+                <button class="btn btn-secondary" onclick="copyToClipboard('clientConfig')">复制 VLESS 链接</button>
+                <div class="form-group" style="margin-top: 10px;">
+                    <textarea id="clientConfig" readonly style="height: 100px;"></textarea>
+                </div>
+                
+                <h2>客户端二维码</h2>
+                <div id="qr-code"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const sniLibrary = ["amd.com", "aws.com", "c.6sc.co", "j.6sc.co", "b.6sc.co", "intel.com", "r.bing.com", "th.bing.com", "www.amd.com", "www.aws.com", "ipv6.6sc.co", "www.xbox.com", "www.sony.com", "rum.hlx.page", "www.bing.com", "xp.apple.com", "www.wowt.com", "www.apple.com", "www.intel.com", "www.tesla.com", "www.xilinx.com", "www.oracle.com", "www.icloud.com", "apps.apple.com", "c.marsflag.com", "www.nvidia.com", "snap.licdn.com", "aws.amazon.com", "drivers.amd.com", "cdn.bizibly.com", "s.go-mpulse.net", "tags.tiqcdn.com", "cdn.bizible.com", "ocsp2.apple.com", "cdn.userway.org", "download.amd.com", "d1.awsstatic.com", "s0.awsstatic.com", "mscom.demdex.net", "a0.awsstatic.com", "go.microsoft.com", "apps.mzstatic.com", "sisu.xboxlive.com", "www.microsoft.com", "s.mp.marsflag.com", "images.nvidia.com", "vs.aws.amazon.com", "c.s-microsoft.com", "statici.icloud.com", "beacon.gtv-pub.com", "ts4.tc.mm.bing.net", "ts3.tc.mm.bing.net", "d2c.aws.amazon.com", "ts1.tc.mm.bing.net", "ce.mf.marsflag.com", "d0.m.awsstatic.com", "t0.m.awsstatic.com", "ts2.tc.mm.bing.net", "statici.icloud.com", "tag.demandbase.com", "assets-www.xbox.com", "logx.optimizely.com", "azure.microsoft.com", "aadcdn.msftauth.net", "d.oracleinfinity.io", "assets.adobedtm.com", "lpcdn.lpsnmedia.net", "res-1.cdn.office.net", "is1-ssl.mzstatic.com", "electronics.sony.com", "intelcorp.scene7.com", "acctcdn.msftauth.net", "cdnssl.clicktale.net", "catalog.gamepass.com", "consent.trustarc.com", "gsp-ssl.ls.apple.com", "munchkin.marketo.net", "s.company-target.com", "cdn77.api.userway.org", "cua-chat-ui.tesla.com", "assets-xbxweb.xbox.com", "ds-aksb-a.akamaihd.net", "static.cloud.coveo.com", "api.company-target.com", "devblogs.microsoft.com", "s7mbrstream.scene7.com", "fpinit.itunes.apple.com", "digitalassets.tesla.com", "d.impactradius-event.com", "downloadmirror.intel.com", "iosapps.itunes.apple.com", "www.google-analytics.com", "se-edge.itunes.apple.com", "publisher.liveperson.net", "tag-logger.demandbase.com", "services.digitaleast.mobi", "configuration.ls.apple.com", "gray-wowt-prod.gtv-cdn.com", "visualstudio.microsoft.com", "prod.log.shortbread.aws.dev", "amp-api-edge.apps.apple.com", "store-images.s-microsoft.com", "cdn-dynmedia-1.microsoft.com", "github.gallerycdn.vsassets.io", "prod.pa.cdn.uis.awsstatic.com", "a.b.cdn.console.awsstatic.com", "d3agakyjgjv5i8.cloudfront.net", "vscjava.gallerycdn.vsassets.io", "location-services-prd.tesla.com", "ms-vscode.gallerycdn.vsassets.io", "ms-python.gallerycdn.vsassets.io", "gray-config-prod.api.arc-cdn.net", "i7158c100-ds-aksb-a.akamaihd.net", "downloaddispatch.itunes.apple.com", "res.public.onecdn.static.microsoft", "gray.video-player.arcpublishing.com", "gray-config-prod.api.cdn.arcpublishing.com", "img-prod-cms-rt-microsoft-com.akamaized.net", "prod.us-east-1.ui.gcr-chat.marketing.aws.dev"];
+
+        // --- 新增：渐变提示条功能 ---
+        let toastTimer;
+        function showToast(message, type = 'info') { // type: 'info', 'success', 'error'
+            const toast = document.getElementById('toast-notification');
+            if (!toast) return;
+
+            clearTimeout(toastTimer); // 清除上一个计时器
+
+            toast.textContent = message;
+            toast.className = 'show'; // 移除所有旧的状态类
+
+            if (type === 'success') {
+                toast.classList.add('toast-success');
+            } else if (type === 'error') {
+                toast.classList.add('toast-error');
+            } else {
+                toast.classList.add('toast-info');
+            }
+
+            // 3秒后自动隐藏
+            toastTimer = setTimeout(() => {
+                toast.className = toast.className.replace('show', '');
+            }, 3000);
+        }
+        // --- 结束：渐变提示条功能 ---
+
+        // 延迟测试命令
+        function generateShellCommand(selectedDomains) {
+            const domainStr = selectedDomains.join(" ");
+            return `for d in ${domainStr} ; do t1=$(date +%s%3N); (echo "Q" | timeout 1 openssl s_client -connect $d:443 -servername $d -showcerts </dev/null &>/dev/null) && t2=$(date +%s%3N) && echo "$d: $((t2 - t1)) ms" || echo "$d: timeout"; done`;
+        }
+        
+        // 页面加载时
+        window.onload = function() {
+            populateSniPresets(); // 动态填充 SNI 库
+            loadInputs();
+            if (!document.getElementById('uuid').value) {
+                genUUID();
+            }
+        };
+        
+        function populateSniPresets() {
+            const select = document.getElementById('sniPreset');
+            const uniqueDomains = [...new Set(sniLibrary)].sort();
+            uniqueDomains.forEach(domain => {
+                const option = document.createElement('option');
+                option.value = domain;
+                option.textContent = domain;
+                select.appendChild(option);
+            });
+        }
+        
+        // --- 修改：延迟测试只选10个 ---
+        function showLatencyTestCommand() {
+            // 1. 创建一个打乱顺序的库副本
+            const shuffled = [...sniLibrary].sort(() => 0.5 - Math.random());
+            // 2. 选取前10个
+            const selectedDomains = shuffled.slice(0, 10);
+            // 3. 生成命令
+            const command = generateShellCommand(selectedDomains);
+            
+            document.getElementById('latencyTestCommand').value = command;
+            showToast('已生成 10 个随机域名的测试命令。', 'success');
+        }
+
+        // --- 辅助函数 ---
+        function uint8ArrayToUrlSafeBase64(uint8array) {
+            let binaryString = String.fromCharCode.apply(null, uint8array);
+            let base64 = btoa(binaryString);
+            return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+
+        function genUUID() {
+            document.getElementById('uuid').value = crypto.randomUUID();
+        }
+
+        function genShortId() {
+             let arr = new Uint8Array(4);
+             crypto.getRandomValues(arr);
+             document.getElementById('shortId').value = Array.from(arr, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
+        function genKeys() {
+            try {
+                const keyPair = nacl.box.keyPair(); // 使用 tweetnacl
+                const publicKey = uint8ArrayToUrlSafeBase64(keyPair.publicKey);
+                const privateKey = uint8ArrayToUrlSafeBase64(keyPair.secretKey);
+                
+                document.getElementById('publicKey').value = publicKey;
+                document.getElementById('privateKey').value = privateKey;
+            } catch (err) {
+                console.error(err);
+                showToast("密钥生成失败: " + err.message, 'error');
+            }
+        }
+        
+        function setRandomSNI() {
+            const randomSNI = sniLibrary[Math.floor(Math.random() * sniLibrary.length)];
+            document.getElementById('serverNames').value = randomSNI;
+            document.getElementById('sniPreset').value = ""; // 清空下拉框选择
+        }
+        
+        function applySNIPreset() {
+            const preset = document.getElementById('sniPreset').value;
+            if (preset) {
+                document.getElementById('serverNames').value = preset;
+            }
+        }
+
+        function copyText(text) {
+            const el = document.createElement('textarea');
+            el.value = text;
+            el.style.position = 'absolute';
+            el.style.left = '-9999px';
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast('已复制到剪贴板！', 'success');
+        }
+
+        // --- 核心功能 ---
+        function generateConfigs() {
+            // 1. 获取所有表单值
+            const serverIp = document.getElementById('serverIp').value.trim();
+            const serverPort = document.getElementById('serverPort').value;
+            const uuid = document.getElementById('uuid').value.trim();
+            const serverNames = document.getElementById('serverNames').value.trim();
+            const fingerprint = document.getElementById('fingerprint').value;
+            let shortId = document.getElementById('shortId').value.trim();
+            const remark = document.getElementById('remark').value.trim();
+            const privateKey = document.getElementById('privateKey').value.trim();
+            const publicKey = document.getElementById('publicKey').value.trim();
+
+            if (!shortId) {
+                shortId = genShortId();
+                document.getElementById('shortId').value = shortId;
+            }
+
+            // 2. 验证
+            if (!serverIp || !uuid || !serverNames || !privateKey || !publicKey || !shortId) {
+                showToast("错误：服务器IP、UUID、SNI、ShortID 和密钥对不能为空！", 'error');
+                return;
+            }
+            
+            // 3. 处理 SNI 和 Dest
+            const sniList = serverNames.split(',').map(s => s.trim()).filter(s => s);
+            if (sniList.length === 0) {
+                 showToast("错误：SNI 字段不能为空！", 'error');
+                 return;
+            }
+            const firstSNI = sniList[0];
+            const dest = firstSNI + ":443"; // 自动从第一个SNI派生dest
+
+            // 4. 生成服务器 config.json
+            const serverConfig = {
+                "log": {"loglevel": "warning"},
+                "inbounds": [{
+                    "listen": "0.0.0.0",
+                    "port": parseInt(serverPort, 10),
+                    "protocol": "vless",
+                    "settings": {
+                        "clients": [{"id": uuid, "flow": "xtls-rprx-vision"}],
+                        "decryption": "none"
+                    },
+                    "streamSettings": {
+                        "network": "tcp",
+                        "security": "reality",
+                        "realitySettings": {
+                            "show": false,
+                            "dest": dest,
+                            "xver": 0,
+                            "serverNames": sniList,
+                            "privateKey": privateKey,
+                            "shortIds": shortId.split(',').map(s => s.trim())
+                        }
+                    }
+                }],
+                "outbounds": [
+                    {"protocol": "freedom", "tag": "direct"},
+                    {"protocol": "blackhole", "tag": "block"}
+                ],
+                "_comment_generator_metadata": {
+                    "note": "此数据块由网页生成器添加，用于配置导入/恢复。Xray 会忽略此部分。",
+                    "serverIp": serverIp,
+                    "serverPort": serverPort,
+                    "uuid": uuid,
+                    "serverNames": serverNames,
+                    "fingerprint": fingerprint,
+                    "shortId": shortId,
+                    "remark": remark,
+                    "privateKey": privateKey,
+                    "publicKey": publicKey
+                }
+            };
+
+            const serverConfigStr = JSON.stringify(serverConfig, null, 4);
+            document.getElementById('serverConfig').value = serverConfigStr;
+
+            // 5. 生成客户端 VLESS 链接
+            const clientUrl = `vless://${uuid}@${serverIp}:${serverPort}` +
+                `?security=reality` +
+                `&sni=${encodeURIComponent(firstSNI)}` +
+                `&fp=${encodeURIComponent(fingerprint)}` +
+                `&pbk=${encodeURIComponent(publicKey)}` +
+                `&sid=${encodeURIComponent(shortId.split(',')[0].trim())}` +
+                `&type=tcp` +
+                `&flow=xtls-rprx-vision` +
+                `&encryption=none` +
+                `#${encodeURIComponent(remark)}`;
+
+            document.getElementById('clientConfig').value = clientUrl;
+
+            // 6. 生成二维码
+            const qrElement = document.getElementById('qr-code');
+            qrElement.innerHTML = '';
+            
+            try {
+                new QRCode(qrElement, {
+                    text: clientUrl,
+                    width: 256,
+                    height: 256,
+                    correctLevel : QRCode.CorrectLevel.M 
+                });
+            } catch (err) {
+                console.error(err);
+                qrElement.innerHTML = "二维码生成失败。链接可能过长或库加载失败。";
+                showToast("二维码生成失败: " + err.message, 'error');
+            }
+        }
+
+        // --- 按钮操作 ---
+        function copyToClipboard(elementId) {
+            const textarea = document.getElementById(elementId);
+            if (!textarea.value) {
+                showToast("内容为空，无法复制！", 'error');
+                return;
+            }
+            textarea.select();
+            document.execCommand('copy');
+            showToast("已复制到剪贴板！", 'success');
+        }
+
+        function downloadConfig() {
+            const text = document.getElementById('serverConfig').value;
+            if (!text) {
+                showToast("配置为空，无法下载！", 'error');
+                return;
+            }
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:application/json;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', 'config.json');
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        // --- 保存、加载、导入 ---
+        const storageKey = 'xrayRealityConfigurator';
+
+        function getFormData() {
+            return {
+                serverIp: document.getElementById('serverIp').value,
+                serverPort: document.getElementById('serverPort').value,
+                uuid: document.getElementById('uuid').value,
+                serverNames: document.getElementById('serverNames').value,
+                fingerprint: document.getElementById('fingerprint').value,
+                shortId: document.getElementById('shortId').value,
+                remark: document.getElementById('remark').value,
+                privateKey: document.getElementById('privateKey').value,
+                publicKey: document.getElementById('publicKey').value,
+            };
+        }
+        
+        function setFormData(data) {
+            document.getElementById('serverIp').value = data.serverIp || '';
+            document.getElementById('serverPort').value = data.serverPort || '443';
+            document.getElementById('uuid').value = data.uuid || '';
+            document.getElementById('serverNames').value = data.serverNames || 'www.microsoft.com';
+            document.getElementById('fingerprint').value = data.fingerprint || 'chrome';
+            document.getElementById('shortId').value = data.shortId || '';
+            document.getElementById('remark').value = data.remark || 'My-REALITY-Node';
+            document.getElementById('privateKey').value = data.privateKey || '';
+            document.getElementById('publicKey').value = data.publicKey || '';
+            
+            const sniPresetSelect = document.getElementById('sniPreset');
+            if (data.serverNames && sniLibrary.includes(data.serverNames)) {
+                sniPresetSelect.value = data.serverNames;
+            } else {
+                sniPresetSelect.value = "";
+            }
+        }
+
+        function saveInputs() {
+            const inputs = getFormData();
+            localStorage.setItem(storageKey, JSON.stringify(inputs));
+            showToast("输入已保存到浏览器！", 'success');
+        }
+
+        function loadInputs() {
+            const savedInputs = localStorage.getItem(storageKey);
+            if (savedInputs) {
+                try {
+                    const inputs = JSON.parse(savedInputs);
+                    setFormData(inputs);
+                    showToast("已从浏览器加载保存的输入。", 'success');
+                } catch (e) {
+                    console.error("加载保存的数据失败:", e);
+                    localStorage.removeItem(storageKey);
+                    showToast("加载数据失败: " + e.message, 'error');
+                }
+            }
+        }
+        
+        function clearInputs() {
+             if (confirm("确定要清空所有输入框和保存的数据吗？")) {
+                setFormData({});
+                document.getElementById('serverConfig').value = '';
+                document.getElementById('clientConfig').value = '';
+                document.getElementById('qr-code').innerHTML = '';
+                document.getElementById('latencyTestCommand').value = '';
+                localStorage.removeItem(storageKey);
+                genUUID();
+                showToast("已清空所有输入和保存的数据。", 'info');
+             }
+        }
+
+        function importConfig() {
+            const fileInput = document.getElementById('fileImport');
+            if (fileInput.files.length === 0) {
+                showToast("请先选择一个文件。", 'error');
+                return;
+            }
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const config = JSON.parse(e.target.result);
+                    
+                    if (config._comment_generator_metadata) {
+                        setFormData(config._comment_generator_metadata);
+                        showToast("导入成功！已从元数据恢复所有设置。", 'success');
+                        generateConfigs();
+                    } else {
+                        const inbound = config.inbounds[0];
+                        if (!inbound || inbound.protocol !== 'vless' || inbound.streamSettings.security !== 'reality') {
+                            throw new Error("不是一个有效的 VLESS-REALITY 配置文件。");
+                        }
+                        const settings = inbound.settings;
+                        const realitySettings = inbound.streamSettings.realitySettings;
+                        const oldData = {
+                            serverPort: inbound.port,
+                            uuid: settings.clients[0].id,
+                            serverNames: (realitySettings.serverNames || []).join(','),
+                            privateKey: realitySettings.privateKey,
+                            shortId: (realitySettings.shortIds || []).join(',')
+                        };
+                        setFormData(oldData);
+                        showToast("导入成功！但这是旧版配置，请检查公钥等字段。", 'info');
+                    }
+                } catch (err) {
+                    console.error("导入失败:", err);
+                    showToast("文件解析失败: " + err.message, 'error');
+                } finally {
+                    fileInput.value = '';
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+
+    </script>
+</body>
+</html>
